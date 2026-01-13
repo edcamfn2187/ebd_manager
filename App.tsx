@@ -71,7 +71,6 @@ const App: React.FC = () => {
           .single();
 
         if (profileError || !profile) {
-          // Se não houver perfil, assumimos Admin para o primeiro usuário ou erro de config
           console.warn("Perfil não encontrado para este usuário no menu Acessos.");
           setSession({
             email,
@@ -80,10 +79,10 @@ const App: React.FC = () => {
           });
         } else {
           const userRole = profile.role as 'ADMIN' | 'TEACHER';
-          let assignedClassId = undefined;
+          let assignedClassIds: string[] = [];
           let teacherId = undefined;
 
-          // 2. Se for Professor, buscar qual classe ele gerencia (pelo e-mail)
+          // 2. Se for Professor, buscar TODAS as classes que ele gerencia (pelo e-mail)
           if (userRole === 'TEACHER') {
             const { data: teacherData } = await supabase
               .from('teachers')
@@ -93,13 +92,14 @@ const App: React.FC = () => {
 
             if (teacherData) {
               teacherId = teacherData.id;
-              const { data: classData } = await supabase
+              const { data: classesData } = await supabase
                 .from('classes')
                 .select('id')
-                .eq('teacher', teacherData.name)
-                .single();
+                .eq('teacher', teacherData.name);
               
-              if (classData) assignedClassId = classData.id;
+              if (classesData) {
+                assignedClassIds = classesData.map(c => c.id);
+              }
             }
           }
 
@@ -108,7 +108,7 @@ const App: React.FC = () => {
             role: userRole,
             name: profile.full_name || 'Usuário',
             teacherId,
-            assignedClassId
+            assignedClassIds // Agora é um array
           });
         }
         await fetchData();
@@ -310,9 +310,10 @@ const App: React.FC = () => {
 
   if (!session) return <LoginForm onLoginSuccess={() => checkUserSession()} />;
 
-  const filteredClasses = session.role === 'ADMIN' ? classes : classes.filter(c => c.id === session.assignedClassId);
-  const filteredStudents = session.role === 'ADMIN' ? students : students.filter(s => s.classId === session.assignedClassId);
-  const filteredRecords = session.role === 'ADMIN' ? records : records.filter(r => r.classId === session.assignedClassId);
+  // Filtragem atualizada para suportar múltiplos IDs de classes para professores
+  const filteredClasses = session.role === 'ADMIN' ? classes : classes.filter(c => session.assignedClassIds?.includes(c.id));
+  const filteredStudents = session.role === 'ADMIN' ? students : students.filter(s => session.assignedClassIds?.includes(s.classId));
+  const filteredRecords = session.role === 'ADMIN' ? records : records.filter(r => session.assignedClassIds?.includes(r.classId));
 
   const renderContent = () => {
     switch (currentView) {

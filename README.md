@@ -49,6 +49,28 @@ Acesse o painel do Supabase → SQL Editor → cole tudo abaixo.
 
 ## 👤 Perfis de Usuário (controle de acesso)
 
+Tabela responsável pelo controle de acesso (ADMIN / PROFESSOR) e vínculo com o sistema de autenticação.
+
+````sql
+create table public.profiles (
+  id uuid not null,
+  email text null,
+  full_name text null,
+  role text check (role in ('admin','professor')) not null,
+  created_at timestamp with time zone default timezone ('utc'::text, now()),
+  constraint profiles_pkey primary key (id),
+  constraint profiles_id_fkey foreign key (id) references auth.users (id) on delete cascade
+);
+
+alter table profiles enable row level security;
+
+create policy "Users can read own profile"
+on profiles for select
+using ( auth.uid() = id );
+
+create policy "Users can update own profile"
+on profiles for update
+using ( auth.uid() = id );
 ```sql
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -62,7 +84,7 @@ alter table profiles enable row level security;
 create policy "Users can read own profile"
 on profiles for select
 using ( auth.uid() = id );
-```
+````
 
 ---
 
@@ -300,6 +322,143 @@ categories (id, name, color)
 * Um professor pode ter várias classes
 * Uma classe pode ter vários alunos
 * Uma classe pode ter vários registros de chamada
+
+---
+
+# 🐘 Usando o app com PostgreSQL (fora do Supabase)
+
+O sistema foi criado sobre Supabase, que internamente **já é PostgreSQL**. Porém, você pode usar este app com um **PostgreSQL próprio** (Railway, Neon, Render, AWS, servidor local etc.).
+
+⚠️ Importante: nesse modo você **não terá Supabase Auth**, então precisará implementar autenticação via backend (Node/Nest/Laravel).
+
+---
+
+## 🏗️ Arquitetura recomendada
+
+```
+React (este app)
+   ↓
+API (Node.js / NestJS / Laravel)
+   ↓
+PostgreSQL
+```
+
+O front-end nunca acessa o banco direto. Tudo passa por uma API.
+
+---
+
+## 🗄️ Script completo PostgreSQL (compatível)
+
+```sql
+-- USUÁRIOS DO SISTEMA
+create table users (
+  id uuid primary key,
+  email text unique not null,
+  password text not null,
+  role text check (role in ('admin','professor')) not null,
+  created_at timestamp default now()
+);
+
+-- CATEGORIAS
+create table categories (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  color text not null,
+  created_at timestamp default now()
+);
+
+-- PROFESSORES
+create table teachers (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text,
+  active boolean default true,
+  created_at timestamp default now()
+);
+
+-- CLASSES
+create table classes (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  teacher text,
+  category text,
+  created_at timestamp default now()
+);
+
+-- ALUNOS
+create table students (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  birthDate date,
+  classId uuid references classes(id) on delete set null,
+  active boolean default true,
+  created_at timestamp default now()
+);
+
+-- CHAMADAS
+create table attendance_records (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  classId uuid references classes(id) on delete cascade,
+  presentStudents jsonb,
+  absentStudents jsonb,
+  titheAmount numeric,
+  observations text,
+  created_at timestamp default now()
+);
+```
+
+---
+
+## 🔐 Autenticação sugerida
+
+Você pode usar:
+
+* JWT + bcrypt (Node)
+* Laravel Breeze / Sanctum
+* NestJS Auth
+
+Fluxo:
+
+1. Usuário faz login
+2. API valida senha
+3. API retorna token JWT
+4. React guarda token
+5. Todas requisições usam o token
+
+---
+
+## 🔄 O que muda no front-end
+
+Você deverá trocar:
+
+```ts
+supabase.from('students').select('*')
+```
+
+por:
+
+```ts
+api.get('/students')
+```
+
+E criar serviços tipo:
+
+* /auth/login
+* /classes
+* /students
+* /teachers
+* /attendance
+
+---
+
+## 🚀 Vantagens do modo PostgreSQL + API
+
+* Controle total do backend
+* Pode virar SaaS
+* Pode criar app mobile
+* Mais segurança
+* Integração com outros sistemas
 
 ---
 

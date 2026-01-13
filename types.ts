@@ -18,7 +18,7 @@ export interface UserSession {
   role: UserRole;
   name?: string;
   teacherId?: string;
-  assignedClassId?: string;
+  assignedClassIds?: string[]; // Alterado para array
 }
 
 export interface Profile {
