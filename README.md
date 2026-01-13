@@ -223,10 +223,95 @@ Professores cadastrados pelo app entram como `professor` automaticamente.
 
 ---
 
+# 📕 Manual do Administrador
+
+## Acesso
+
+* Criar usuários no Supabase ou liberar cadastros.
+* Definir cargo (admin/professor) na tabela `profiles`.
+
+## Funções do ADMIN
+
+* Criar, editar e excluir **Classes**
+* Gerenciar **Professores**
+* Gerenciar **Categorias**
+* Gerenciar **Usuários/Acessos**
+* Visualizar todos os relatórios
+
+## Fluxo recomendado
+
+1. Criar categorias
+2. Cadastrar professores
+3. Criar classes
+4. Acompanhar chamadas e relatórios
+
+---
+
+# 📗 Manual do Professor
+
+## Funções do PROFESSOR
+
+* Fazer chamadas
+* Visualizar relatórios
+* Gerenciar alunos
+
+## Restrições
+
+* Não acessa gerenciamento de usuários
+* Não gerencia professores
+* Não cria categorias
+
+---
+
+# 🗺️ Diagrama do Banco de Dados (modelo lógico)
+
+```
+auth.users
+   │
+   │ 1–1
+   ▼
+profiles (id, email, role)
+
+classes (id, name, teacher, category)
+   │
+   │ 1–N
+   ▼
+students (id, name, birthDate, classId, active)
+
+classes (id)
+   │
+   │ 1–N
+   ▼
+attendance_records (id, date, classId, presentStudents, absentStudents, titheAmount)
+
+categories (id, name, color)
+   ▲
+   │
+   └──── classes.category
+```
+
+---
+
+# 🧠 Regras do Sistema
+
+* Todo usuário autenticado deve ter um registro em `profiles`
+* `admin` → acesso total
+* `professor` → acesso limitado
+* Um professor pode ter várias classes
+* Uma classe pode ter vários alunos
+* Uma classe pode ter vários registros de chamada
+
+---
+
 # 🏁 Pronto
 
 Seu sistema está preparado para uso em produção com controle de usuários e banco organizado.
 
 ---
 
+Se quiser, posso gerar também:
 
+* Script de backup
+* Modelo ER (diagrama)
+* Manual do administrador
+* Documentação para professores
